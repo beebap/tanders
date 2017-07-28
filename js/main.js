@@ -10,6 +10,8 @@ var passphrase;
 
 var pass_key = "";
 
+var isLoggedIn = false;
+
 function preload() {
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
     game.scale.parentIsWindow = true;
@@ -70,52 +72,50 @@ function actionOnClick (pointer) {
     pass_key = pass_key + "" + pass_key_digit;
     console.log(pass_key);
  
-    if(pass_key.length == 1){
+    if(pass_key.length == 1) {
     	house = game.add.sprite(150, window.screen.availHeight / 4 + 150, 'house1');
     	passphrase_prompt()
-    	sprite.kill();
+        if (typeof sprite !== 'undefined') {
+            sprite.kill();
+        }
     	//show foot
     }
-    else if(pass_key.length == 2){
+    else if(pass_key.length == 2) {
     	house.kill();
     	house = game.add.sprite(150, window.screen.availHeight / 4 + 150, 'house2');
     	//show feet
     }
-    else if(pass_key.length == 3){
+    else if(pass_key.length == 3) {
     	house.kill();
     	house = game.add.sprite(150, window.screen.availHeight / 4 + 150, 'house3');
     	//show feet and eyes
     }
-    else if(pass_key.length == 4){
+    else if(pass_key.length == 4) {
     	//show pet
-    	if(is_pass_key_valid(pass_key)){ 
-    	    show_pet();
-    	}
-    	else{
-    		pass_key = "";
-    		hide_pet();
-    	}
+        if (isLoggedIn) {
+            clockOutUser(pass_key);
+        }
+        else {
+            clockInUser(pass_key);
+        }
     }
-}
-
-function is_pass_key_valid(pass_key){
-	//call pass key validation
-	return true;
 }
 
 function hide_pet(){
 	//remove sprites
-    sprite.kill();
+ 
     reset();
+    sprite.kill();
 }
 
-function show_pet(){
+function show_pet(isHappy){
 	
 	//check if it should be sad or happy on logout
+    const mood = isHappy ? 'happy' : 'happy';
 	reset();
     entertext.kill();
     passphrase.kill();
-	sprite = game.add.sprite(300, window.screen.availHeight / 1.5, 'happy');
+	sprite = game.add.sprite(300, window.screen.availHeight / 1.5, mood);
     sprite.animations.add('walk', [0, 0, 0, 1, 1, 1, 2, 2, 2]);
     sprite.animations.play('walk', 10, true);
     sprite.scale.set(4);
@@ -131,4 +131,165 @@ function reset(){
 function passphrase_prompt(){
 	entertext = game.add.text(225, window.screen.availHeight / 4, 'Feed Your PassPet\n', {font:"40px Arial", fill: "#ffffff", align: "left"});
 	passphrase = game.add.text(300, window.screen.availHeight / 4 + 50, '* * * *\n', {font:"80px Arial", fill: "#ffffff", align: "left"});
+}
+
+const url = 'https://my.tanda.co/api/v2';
+const authorization = 'bearer 657170d9462612fd89c373e2fffdb65c07b857b0af6e9c48a4fd8bfc0fd33368';
+
+function clockInUser(passcode) {
+    getAllUsers(passcode).then((users) => {
+        let userId = -1;
+        users.forEach((user) => {
+            if (user.passcode === passcode) {
+                userId = user.id
+            }
+        });
+        return userId;
+    }).then((userId) => {
+        return clock('clockin', userId)
+    }).then((response) => {
+        show_pet(true);
+        isLoggedIn = true;
+        console.log('clocked in!');
+    }).catch((error) => {
+        hide_pet();
+        console.log('failed to clock in!');
+        console.log(error);
+    });
+}
+
+function clockOutUser(passcode) {
+    getAllUsers(passcode).then((users) => {
+        let userId = -1;
+        users.forEach((user) => {
+            if (user.passcode === passcode) {
+                userId = user.id
+            }
+        });
+        return userId;
+    }).then((userId) => {
+        const schedule = getUserSchedule(userId);
+        const clockin = getLastUserClockin(userId);
+
+        Promise.all([schedule, clockin]).then((timetables) => {
+            if (timetables[1].time > timetables[0].start) {
+                isHappy = false;
+                console.log('you fed me late');
+            }
+            else {
+                isHappy = true;
+            }
+        });
+
+        return clock('clockout', userId)
+    }).then((response) => {
+        show_pet(isHappy);
+        isLoggedIn = false;
+        console.log('clocked out!');
+    }).catch((error) => {
+        hide_pet();
+        console.log('failed to clock out!');
+        console.log(error);
+    });
+}
+
+function getAllUsers() {
+    return fetch(`${url}/users`, {  
+        method: 'get',  
+        headers: {
+          'Authorization': authorization,
+        },  
+    })
+    .then(status)
+    .then(json)  
+    .then((response) => {
+        return Promise.resolve(response);
+    })  
+    .catch((error) => {
+        return Promise.reject(error);
+    });
+}
+
+function clock(type, userId) {
+    let ts = Math.round((new Date()).getTime() / 1000);
+    console.log(userId)
+    return fetch(`${url}/clockins`, {  
+        method: 'post',  
+        headers: {
+          'Authorization': authorization,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          type: type,
+          time: ts,
+        }),
+    })
+    .then(status)
+    .then(json)  
+    .then((response) => {
+        return Promise.resolve(response);
+    })  
+    .catch((error) => {
+        return Promise.reject(error);
+    });
+}
+
+function getUserSchedule(userId) {
+    const today = new Date().toJSON().slice(0,10);
+    const params = `user_ids=${userId}&from=${today}&to=${today}`;
+    return fetch(`${url}/schedules?${params}`, {
+        method: 'get',
+        headers: {
+          'Authorization': authorization,
+          'Content-Type': 'application/json'
+        },
+    })
+    .then(status)
+    .then(json)  
+    .then((response) => {
+        return Promise.resolve(response[0]); // we're getting only the user's sched
+    })  
+    .catch((error) => {
+        return Promise.reject(error);
+    });
+}
+
+function getLastUserClockin(userId) {
+    const today = new Date().toJSON().slice(0,10);
+    const params = `user_id=${userId}&from=${today}&to=${today}`;
+    return fetch(`${url}/clockins?${params}`, {
+        method: 'get',
+        headers: {
+          'Authorization': authorization,
+          'Content-Type': 'application/json'
+        },
+    })
+    .then(status)
+    .then(json)  
+    .then((response) => {
+        let lastClockIn = {};
+        for(let i = response.length - 1; i >= 0; i--) {
+            if (response[i].type === 'clockin') {
+                lastClockIn = response[i];
+                break;
+            }
+        }
+        return Promise.resolve(lastClockIn);
+    })
+    .catch((error) => {
+        return Promise.reject(error);
+    });
+}
+
+function status(response) {  
+  if (response.status >= 200 && response.status < 300) {  
+    return Promise.resolve(response)  
+  } else {  
+    return Promise.reject(new Error(response.statusText))  
+  }  
+}
+
+function json(response) {  
+  return response.json()  
 }
