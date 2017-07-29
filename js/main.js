@@ -16,8 +16,15 @@ function preload() {
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
     game.scale.parentIsWindow = true;
 
-    game.load.spritesheet('happy', 'res/happy_dog.png', 50, 60, 3, 3, 0);
-    game.load.spritesheet('sad', 'res/sad_dog.png', 54, 55, 3, 3, 0);
+    //game.load.spritesheet('sad', 'res/sad_dog.png', 54, 55, 3, 3, 0);
+
+    game.load.spritesheet('2359_happy', 'res/piggy_happy.png', 288, 288, 20); //2359
+    game.load.spritesheet('2359_sad', 'res/piggy_sad.png', 288, 288, 20);
+    game.load.spritesheet('2402_sad', 'res/mugsy_sad.png', 288, 288, 2); //2402
+    game.load.spritesheet('2402_happy', 'res/mugsy_happy.png', 288, 288, 9); 
+    game.load.spritesheet('2452_sad', 'res/cut_sad.png', 288, 288, 15); //2452
+    game.load.spritesheet('2452_happy', 'res/cut_happy.png', 288, 288, 4);
+    
 
     game.load.spritesheet('food0', 'res/food0.png', 150,150);
     game.load.spritesheet('food1', 'res/food1.png', 150,150);
@@ -111,14 +118,15 @@ function hide_pet(){
 function show_pet(isHappy){
 	
 	//check if it should be sad or happy on logout
-    const mood = isHappy ? 'happy' : 'happy';
+    const mood = isHappy ? pass_key + '_happy' : pass_key + '_sad';
 	reset();
     entertext.kill();
     passphrase.kill();
 	sprite = game.add.sprite(300, window.screen.availHeight / 1.5, mood);
-    sprite.animations.add('walk', [0, 0, 0, 1, 1, 1, 2, 2, 2]);
-    sprite.animations.play('walk', 10, true);
-    sprite.scale.set(4);
+    //sprite.animations.add('walk', [0, 0, 0, 1, 1, 1, 2, 2, 2]);
+    sprite.animations.add('walk', [0, 1, 2, 3, 4, 5, 6, 7, 8,9,10,11,12,13,14,15,16,17,18,19]);
+    sprite.animations.play('walk', 15, true);
+    //sprite.scale.set(4);
     sprite.smoothed = false;
 }
 
@@ -129,7 +137,7 @@ function reset(){
 }
 
 function passphrase_prompt(){
-	entertext = game.add.text(225, window.screen.availHeight / 4, 'Feed Your PassPet\n', {font:"40px Arial", fill: "#ffffff", align: "left"});
+	entertext = game.add.text(225, window.screen.availHeight / 4, 'Feed Your TandaGotchi\n', {font:"40px Arial", fill: "#ffffff", align: "left"});
 	passphrase = game.add.text(300, window.screen.availHeight / 4 + 50, '* * * *\n', {font:"80px Arial", fill: "#ffffff", align: "left"});
 }
 
