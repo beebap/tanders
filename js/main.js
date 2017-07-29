@@ -1,9 +1,15 @@
 
 var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', { preload: preload, create: create });
 
+var d = new Date();
+var n = d.getTime();
+
 var sprite;
 var background;
 var house;
+
+var timeString;
+var timeText;
 
 var entertext;
 var passphrase;
@@ -77,6 +83,34 @@ function create() {
 
     house = game.add.sprite(150, window.screen.availHeight / 4 + 150, 'house');
 
+    var style = {font:"50px Arial", fill: "#ffffff", align: "center"};
+    timeText = game.add.text(300, window.screen.availHeight / 8, timeString, style);
+
+    var timer = game.time.create();
+    timer.repeat(1 * Phaser.Timer.SECOND, 7200, updateTime, this);
+    timer.start();
+
+}
+
+function updateTime() {
+    var time = new Date();
+
+    var hours = time.getHours();
+    var minutes = time.getMinutes();
+    var seconds = time.getSeconds();
+
+    if (hours < 10) {
+        hours = "0" + hours;
+    }
+    if (minutes < 10) {
+        minutes = "0" + minutes;
+    }
+    if (seconds < 10) {
+        seconds = "0" + seconds;
+    }
+
+    timeString = hours + ":" + minutes + ":" + seconds;
+    timeText.text = timeString;
 }
 
 function actionOnClick (pointer) {
@@ -143,7 +177,7 @@ function reset(){
 }
 
 function passphrase_prompt(){
-	entertext = game.add.text(225, window.screen.availHeight / 4, 'Feed Your TandaGotchi\n', {font:"40px Arial", fill: "#ffffff", align: "left"});
+	entertext = game.add.text(200, window.screen.availHeight / 4, 'Feed Your TandaGotchi\n', {font:"40px Arial", fill: "#ffffff", align: "left"});
 	passphrase = game.add.text(300, window.screen.availHeight / 4 + 50, '* * * *\n', {font:"80px Arial", fill: "#ffffff", align: "left"});
 }
 
