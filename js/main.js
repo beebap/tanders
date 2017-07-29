@@ -10,22 +10,33 @@ var passphrase;
 
 var pass_key = "";
 
-var isLoggedIn = false;
+const users = {
+    '4696': {
+        isLate: false,
+        isLoggedIn: false,
+    },
+    '2402': {
+        isLate: false,
+        isLoggedIn: false,
+    },
+    '9550': {
+        isLate: false,
+        isLoggedIn: false,
+    },
+};
+
 
 function preload() {
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
     game.scale.parentIsWindow = true;
 
-    //game.load.spritesheet('sad', 'res/sad_dog.png', 54, 55, 3, 3, 0);
-
-    game.load.spritesheet('2359_happy', 'res/piggy_happy.png', 288, 288, 20); //2359
-    game.load.spritesheet('2359_sad', 'res/piggy_sad.png', 288, 288, 20);
-    game.load.spritesheet('2402_sad', 'res/mugsy_sad.png', 288, 288, 2); //2402
+    game.load.spritesheet('4696_happy', 'res/piggy_happy.png', 288, 288, 20);
+    game.load.spritesheet('4696_sad', 'res/piggy_sad.png', 288, 288, 20);
+    game.load.spritesheet('2402_sad', 'res/mugsy_sad.png', 288, 288, 2);
     game.load.spritesheet('2402_happy', 'res/mugsy_happy.png', 288, 288, 9); 
-    game.load.spritesheet('2452_sad', 'res/cut_sad.png', 288, 288, 15); //2452
-    game.load.spritesheet('2452_happy', 'res/cut_happy.png', 288, 288, 4);
+    game.load.spritesheet('9550_sad', 'res/cut_sad.png', 288, 288, 15);
+    game.load.spritesheet('9550_happy', 'res/cut_happy.png', 288, 288, 4);
     
-
     game.load.spritesheet('food0', 'res/food0.png', 150,150);
     game.load.spritesheet('food1', 'res/food1.png', 150,150);
     game.load.spritesheet('food2', 'res/food2.png', 150,150);
@@ -36,6 +47,7 @@ function preload() {
     game.load.spritesheet('food7', 'res/food7.png', 150,150);
     game.load.spritesheet('food8', 'res/food8.png', 150,150);
     game.load.spritesheet('food9', 'res/food9.png', 150,150);
+
     game.load.image('background','res/bg.png');
     game.load.image('house','res/house.png');
     game.load.image('house1','res/house_eye1.png');
@@ -65,12 +77,9 @@ function create() {
 
     house = game.add.sprite(150, window.screen.availHeight / 4 + 150, 'house');
 
-    //Feed Your Passpet
-
 }
 
 function actionOnClick (pointer) {
-    
     //  Manually changing the frames of the food, i.e, how it will look when you play with it
     pointer.setFrames(2, 2, 1);
     raw_pass_key_digit = pointer.key;
@@ -98,8 +107,7 @@ function actionOnClick (pointer) {
     	//show feet and eyes
     }
     else if(pass_key.length == 4) {
-    	//show pet
-        if (isLoggedIn) {
+        if (users[pass_key] && users[pass_key].isLoggedIn) {
             clockOutUser(pass_key);
         }
         else {
@@ -110,15 +118,13 @@ function actionOnClick (pointer) {
 
 function hide_pet(){
 	//remove sprites
- 
     reset();
     sprite.kill();
 }
 
-function show_pet(isHappy){
-	
+function show_pet(passcode){
 	//check if it should be sad or happy on logout
-    const mood = isHappy ? pass_key + '_happy' : pass_key + '_sad';
+    const mood = users[passcode].isLate ? pass_key + '_sad' : pass_key + '_happy';
 	reset();
     entertext.kill();
     passphrase.kill();
@@ -156,11 +162,13 @@ function clockInUser(passcode) {
     }).then((userId) => {
         return clock('clockin', userId)
     }).then((response) => {
-        show_pet(true);
-        isLoggedIn = true;
+        users[passcode].isLoggedIn = true;
+        show_pet(passcode);
+        users[passcode].isLate = true; // fake late clockin
         console.log('clocked in!');
     }).catch((error) => {
-        hide_pet();
+        users[passcode].isLoggedIn = false;
+        hide_pet(passcode);
         console.log('failed to clock in!');
         console.log(error);
     });
@@ -176,27 +184,25 @@ function clockOutUser(passcode) {
         });
         return userId;
     }).then((userId) => {
-        const schedule = getUserSchedule(userId);
-        const clockin = getLastUserClockin(userId);
+        const scheduleStart = getUserSchedule(userId);
+        const clockinTime = getLastUserClockin(userId);
+        const clockout = clock('clockout', userId);
 
-        Promise.all([schedule, clockin]).then((timetables) => {
-            if (timetables[1].time > timetables[0].start) {
-                isHappy = false;
+        Promise.all([scheduleStart, clockinTime, clockout]).then((timetables) => {
+            if (timetables[1].time - timetables[0].start > 300) {
+                users[passcode].isLate = true;
                 console.log('you fed me late');
+                show_pet(passcode);
             }
             else {
-                isHappy = true;
+                users[passcode].isLate = false;
+                show_pet(passcode);
             }
+        }).catch((error) => {
+            hide_pet();
+            console.log(error);
         });
-
-        return clock('clockout', userId)
-    }).then((response) => {
-        show_pet(isHappy);
-        isLoggedIn = false;
-        console.log('clocked out!');
     }).catch((error) => {
-        hide_pet();
-        console.log('failed to clock out!');
         console.log(error);
     });
 }
@@ -256,6 +262,7 @@ function getUserSchedule(userId) {
     .then(status)
     .then(json)  
     .then((response) => {
+        console.log(response);
         return Promise.resolve(response[0]); // we're getting only the user's sched
     })  
     .catch((error) => {
